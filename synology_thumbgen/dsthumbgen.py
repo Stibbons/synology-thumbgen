@@ -1,18 +1,20 @@
-import sys
-import os
-import re
 import argparse
 import errno
+import logging
+import os
+import re
+import sys
 import time
-from PIL import Image
+
 from multiprocessing import Pool
 from multiprocessing import Value
+from PIL import Image
 
 
 class State(object):
     def __init__(self):
         self.counter = Value('i', 0)
-        self.start_ticks = Value('d', time.process_time())
+        self.start_ticks = Value('d', time.perf_counter())
 
     def increment(self, n=1):
         with self.counter.get_lock():
@@ -33,15 +35,23 @@ def init(args):
 
 
 def main():
+    FORMAT = '%(asctime)-15s - %(levelname)-8s - %(message)s'
+    logging.basicConfig(level=logging.DEBUG,
+                        format=FORMAT)
     args = parse_args()
     state = State()
 
+    logging.info("Starting conversion script")
+    logging.info("Finding files to convert...")
     files = find_files(args.directory)
 
     with Pool(processes=4, initializer=init, initargs=(state, )) as pool:
-        pool.map(process_file, files)
+        for _ in pool.imap_unordered(process_file, files, chunksize=10):
+            pass
 
-    print("{0} files processed in total.".format(state.value))
+    logging.info("{0} files processed in total.".format(state.value))
+    logging.info("Do not forget to log to your Synology in SSH and manually rename "
+                 "eaDir directories. See README.")
 
 
 def parse_args():
@@ -61,9 +71,12 @@ def find_files(dir):
 
     for root, dirs, files in os.walk(dir):
         for name in files:
-            if re.match(valid_exts_re, name, re.IGNORECASE) \
-                    and not name.startswith('SYNOPHOTO_THUMB'):
+            if (re.match(valid_exts_re, name, re.IGNORECASE) and
+                    not name.startswith('SYNOPHOTO_THUMB') and
+                    not name.startswith('#recycle')):
                 yield os.path.join(root, name)
+            else:
+                logging.debug("Ignoring  : %s/%s", root, name)
 
 
 def print_progress():
@@ -71,13 +84,13 @@ def print_progress():
     state.increment(1)
     processed = state.value
     if processed % 10 == 0:
-        print("{0} files processed so far, averaging {1:.2f} files per second."
-              .format(processed, float(processed) /
-                                 (float(time.process_time() - state.start))))
+        logging.info("{0} files processed so far, averaging {1:.2f} files per second."
+                     .format(processed,
+                             float(processed) / (float(time.perf_counter() - state.start))))
 
 
 def process_file(file_path):
-    print(file_path)
+    logging.info("Processing: %r", file_path)
 
     (dir, filename) = os.path.split(file_path)
     thumb_dir = os.path.join(dir, 'eaDir_tmp', filename)
@@ -104,13 +117,15 @@ def create_thumbnails(source_path, dest_dir):
                    ('SYNOPHOTO_THUMB_M.jpg', 320),
                    ('SYNOPHOTO_THUMB_PREVIEW.jpg', 160),
                    ('SYNOPHOTO_THUMB_S.jpg', 120))
+    jpeg_quality = 70
 
     for thumb in to_generate:
-        if os.path.exists(os.path.join(dest_dir, thumb[0])):
+        thumb_filename = os.path.join(dest_dir, thumb[0])
+        if os.path.exists(thumb_filename):
+            logging.debug("Thumbnail already exists: %s", thumb_filename)
             continue
-
         im.thumbnail((thumb[1], thumb[1]), Image.ANTIALIAS)
-        im.save(os.path.join(dest_dir, thumb[0]))
+        im.save(thumb_filename, quality=jpeg_quality)
 
 
 if __name__ == "__main__":

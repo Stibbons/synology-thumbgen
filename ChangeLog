@@ -1,0 +1,8 @@
+CHANGES
+=======
+
+* Packaging and port to Python 3
+* Added note about Pillow
+* Fixed markup
+* Added readme
+* Initial commit
