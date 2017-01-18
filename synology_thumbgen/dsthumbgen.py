@@ -6,6 +6,7 @@ import re
 import sys
 import time
 
+from multiprocessing import cpu_count
 from multiprocessing import Pool
 from multiprocessing import Value
 from PIL import Image
@@ -45,7 +46,9 @@ def main():
     logging.info("Finding files to convert...")
     files = find_files(args.directory)
 
-    with Pool(processes=4, initializer=init, initargs=(state, )) as pool:
+    nb_cores = cpu_count()
+
+    with Pool(processes=nb_cores, initializer=init, initargs=(state, )) as pool:
         for _ in pool.imap_unordered(process_file, files, chunksize=10):
             pass
 
