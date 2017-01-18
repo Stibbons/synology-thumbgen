@@ -9,6 +9,7 @@ import time
 from multiprocessing import cpu_count
 from multiprocessing import Pool
 from multiprocessing import Value
+from PIL import ExifTags
 from PIL import Image
 
 
@@ -139,6 +140,19 @@ def create_thumbnails(source_path, dest_dir):
             continue
         logging.info("Generating: %s", thumb_filename)
         im.thumbnail((thumb[1], thumb[1]), Image.ANTIALIAS)
+        try:
+            exif = dict((ExifTags.TAGS[k], v) for k, v in im._getexif().items() if k in ExifTags.TAGS)
+            if exif["Orientation"] == 3:
+                logging.debug("Rotating thumbnail 180 deg")
+                im = im.rotate(180, expand=True)
+            elif exif["Orientation"] == 6:
+                logging.debug("Rotating thumbnail 270 deg")
+                im = im.rotate(270, expand=True)
+            elif exif["Orientation"] == 8:
+                logging.debug("Rotating thumbnail 90 deg")
+                im = im.rotate(90, expand=True)
+        except:
+            logging.exception("Cannot get EXIF information for %s", source_path)
         im.save(thumb_filename, quality=jpeg_quality)
 
 

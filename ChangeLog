@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* Rotate image according to EXIF information
 * add --verbose and --no-tmp options
 * use real cpu count
 * Packaging and port to Python 3
