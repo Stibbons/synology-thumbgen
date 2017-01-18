@@ -13,9 +13,10 @@ from PIL import Image
 
 
 class State(object):
-    def __init__(self):
+    def __init__(self, args):
         self.counter = Value('i', 0)
         self.start_ticks = Value('d', time.perf_counter())
+        self.args = args
 
     def increment(self, n=1):
         with self.counter.get_lock():
@@ -37,10 +38,10 @@ def init(args):
 
 def main():
     FORMAT = '%(asctime)-15s - %(levelname)-8s - %(message)s'
-    logging.basicConfig(level=logging.DEBUG,
-                        format=FORMAT)
     args = parse_args()
-    state = State()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                        format=FORMAT)
+    state = State(args)
 
     logging.info("Starting conversion script")
     logging.info("Finding files to convert...")
@@ -61,8 +62,13 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Create thumbnails for Synology Photo Station.")
     parser.add_argument("--directory", required=True,
-                        help="Directory to generate thumbnails for. "
-                             "Subdirectories will always be processed.")
+                        help=("Directory to generate thumbnails for. "
+                              "Subdirectories will always be processed."))
+    parser.add_argument("--no-tmp", action="store_true", dest="no_tmp",
+                        help=("Create '@eaDir' directly. "
+                              "Use it if you have configured the NFS share."))
+    parser.add_argument("--verbose", action="store_true", dest="verbose",
+                        help=("Enable verbose logging."))
 
     return parser.parse_args()
 
@@ -76,7 +82,7 @@ def find_files(dir):
         for name in files:
             if (re.match(valid_exts_re, name, re.IGNORECASE) and
                     not name.startswith('SYNOPHOTO_THUMB') and
-                    not name.startswith('#recycle')):
+                    "#recycle" not in root):
                 yield os.path.join(root, name)
             else:
                 logging.debug("Ignoring  : %s/%s", root, name)
@@ -93,10 +99,15 @@ def print_progress():
 
 
 def process_file(file_path):
-    logging.info("Processing: %r", file_path)
+    logging.debug("Processing: %r", file_path)
 
     (dir, filename) = os.path.split(file_path)
-    thumb_dir = os.path.join(dir, 'eaDir_tmp', filename)
+
+    global state
+    if not state.args.no_tmp:
+        thumb_dir = os.path.join(dir, 'eaDir_tmp', filename)
+    else:
+        thumb_dir = os.path.join(dir, '@eaDir', filename)
     ensure_directory_exists(thumb_dir)
 
     create_thumbnails(file_path, thumb_dir)
@@ -125,8 +136,8 @@ def create_thumbnails(source_path, dest_dir):
     for thumb in to_generate:
         thumb_filename = os.path.join(dest_dir, thumb[0])
         if os.path.exists(thumb_filename):
-            logging.debug("Thumbnail already exists: %s", thumb_filename)
             continue
+        logging.info("Generating: %s", thumb_filename)
         im.thumbnail((thumb[1], thumb[1]), Image.ANTIALIAS)
         im.save(thumb_filename, quality=jpeg_quality)
 

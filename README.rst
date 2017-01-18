@@ -24,9 +24,23 @@ Usage:
 
 Example:
 - Windows: `synology_thumbgen --directory c:\photos`
-- Mac: `synology_thumbgen --directory /Volumes/Photo/` (if `Photo` share is mounted in `/Volume`)
+- Mac: `synology_thumbgen --directory /Volumes/photos` (if `Photo` share is mounted in `/Volume`)
 
 Subdirectories will always be processed.
+
+NFS
+---
+
+If you have properly configured NFS so `@eaDir` directories can be created, use the `--no-tmp`
+argument. You might need to execute using the `root` user:
+
+    sudo -E synology_thumbgen --directory /Volumes/photos --no-tmp
+
+On Mac, you can easily mount NFS share in the Finder using 'Connect to server' with for example:
+
+    nfs://192.168.0.10:/volume1/photos
+
+Share will be mounted on `/Volumes/photos`.
 
 Requirements
 ============
@@ -71,10 +85,13 @@ Useful commands:
     find /volume1/photos -type d -name '@eaDir' -exec echo '{}' \;
 
     # remove any existing thumbnail directories
-    find /volume1/photos -type d -name '@eaDir' -exec rm -rf '{}' \;
+    find /volume1/photos -type d -name '@eaDir' -exec rm -rvf '{}' \;
 
     # rename directories
-    find /volume1/photos -type d -name 'eaDir_tmp' -exec mv '{}' @eaDir \;
+    find /volume1/photos -type d -name 'eaDir_tmp' -exec mv -v '{}' @eaDir \;
+
+    # remove all temp directories
+    find /volume1/photos -type d -name 'eaDir_tmp' -exec rm -rfv '{}' \;
 
 Developer's toolbox
 ===================

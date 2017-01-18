@@ -1,6 +1,8 @@
 CHANGES
 =======
 
+* add --verbose and --no-tmp options
+* use real cpu count
 * Packaging and port to Python 3
 * Added note about Pillow
 * Fixed markup
