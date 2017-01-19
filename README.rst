@@ -45,8 +45,8 @@ Share will be mounted on `/Volumes/photos`.
 Requirements
 ============
 
-The script needs the Pillow imaing library (https://pypi.python.org/pypi/Pillow/2.5.1) to be
-installed. Use `pip` and virtual env command above to install it properly in your environment.
+The script needs the Pillow imaging library (https://pypi.python.org/pypi/Pillow/2.5.1) to be
+installed. Use `pip` and `virtualenv` commands above to install it properly in your environment.
 
 To do after thumbnail generation
 ================================
@@ -79,7 +79,10 @@ Windows). Therefore, these folders must be renamed to `@eaDir` after execution f
 recognize the thumbnail. This renaming process must be done via SSH to the DiskStation unless the
 volume is mounted by NFS.
 
-Useful commands:
+See the **NFS** section above if you have mounted in NFS with all file permission set properly, you
+can skip the creation of the temporary directory.
+
+Useful commands to be executed later on SSH:
 
     # remove any existing thumbnail directories, dry-run check print out before running next command!
     find /volume1/photos -type d -name '@eaDir' -exec echo '{}' \;
@@ -97,5 +100,5 @@ Developer's toolbox
 ===================
 
 This project uses PBR to simplify project management:
-- `AUTHORS` and `ChangeLog` auto-generation: on `python setup.py sdist`
-- Binaries and wheel generation: `python setup.py bdist bdist_wheel`
+- `AUTHORS` and `ChangeLog` auto-generation from Git history on: `python setup.py sdist`
+- Binaries and wheel generation on: `python setup.py bdist bdist_wheel`

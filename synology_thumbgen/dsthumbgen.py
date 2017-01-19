@@ -70,6 +70,8 @@ def parse_args():
                               "Use it if you have configured the NFS share."))
     parser.add_argument("--verbose", action="store_true", dest="verbose",
                         help=("Enable verbose logging."))
+    parser.add_argument("--overwrite", action="store_true", dest="overwrite",
+                        help=("Overwrite existing thumbnail."))
 
     return parser.parse_args()
 
@@ -125,32 +127,46 @@ def ensure_directory_exists(path):
 
 
 def create_thumbnails(source_path, dest_dir):
-    im = Image.open(source_path)
-
     to_generate = (('SYNOPHOTO_THUMB_XL.jpg', 1280),
                    ('SYNOPHOTO_THUMB_B.jpg', 640),
                    ('SYNOPHOTO_THUMB_M.jpg', 320),
                    ('SYNOPHOTO_THUMB_PREVIEW.jpg', 160),
                    ('SYNOPHOTO_THUMB_S.jpg', 120))
     jpeg_quality = 70
+    im_read = 0
 
     for thumb in to_generate:
         thumb_filename = os.path.join(dest_dir, thumb[0])
-        if os.path.exists(thumb_filename):
+        if not state.args.overwrite and os.path.exists(thumb_filename):
             continue
-        logging.info("Generating: %s", thumb_filename)
-        im.thumbnail((thumb[1], thumb[1]), Image.ANTIALIAS)
+        if im_read == 0:
+            try:
+                im = Image.open(source_path)
+            except:
+                logging.exception("Error opening image %s. Ignoring it.", source_path)
+                return
+            logging.debug("Reading: %s", source_path)
+            im_read = 1
+        logging.debug("Generating: %s", thumb_filename)
         try:
-            exif = dict((ExifTags.TAGS[k], v) for k, v in im._getexif().items() if k in ExifTags.TAGS)
-            if exif["Orientation"] == 3:
-                logging.debug("Rotating thumbnail 180 deg")
-                im = im.rotate(180, expand=True)
-            elif exif["Orientation"] == 6:
-                logging.debug("Rotating thumbnail 270 deg")
-                im = im.rotate(270, expand=True)
-            elif exif["Orientation"] == 8:
-                logging.debug("Rotating thumbnail 90 deg")
-                im = im.rotate(90, expand=True)
+            im.thumbnail((thumb[1], thumb[1]), Image.ANTIALIAS)
+        except:
+            logging.exception("Thumbnail generation failure on: %s. Continueing...", source_path)
+        try:
+            if hasattr(im, '_getexif'):
+                exif = {ExifTags.TAGS[k]: v
+                        for k, v in im._getexif().items()
+                        if k in ExifTags.TAGS}
+                orientation = exif.get("Orientation", 1)
+                if orientation == 3:
+                    logging.debug("Rotating thumbnail 180 deg")
+                    im = im.rotate(180, expand=True)
+                elif orientation == 6:
+                    logging.debug("Rotating thumbnail 270 deg")
+                    im = im.rotate(270, expand=True)
+                elif orientation == 8:
+                    logging.debug("Rotating thumbnail 90 deg")
+                    im = im.rotate(90, expand=True)
         except:
             logging.exception("Cannot get EXIF information for %s", source_path)
         im.save(thumb_filename, quality=jpeg_quality)

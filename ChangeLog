@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* Continue even after thumbnail generation errors
 * Rotate image according to EXIF information
 * add --verbose and --no-tmp options
 * use real cpu count
